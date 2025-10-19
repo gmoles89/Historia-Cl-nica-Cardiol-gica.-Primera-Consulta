@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Historia Clínica Cardiológica</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Historia Clínica Cardiológica - Primera Consulta</h1>
+        <form method="post">
+            <section>
+                <h2>Datos del Paciente</h2>
+                <div class="grid">
+                    <label>Edad
+                        <input type="number" name="edad" min="1" max="110" required>
+                    </label>
+                    <label>Sexo
+                        <select name="sexo" required>
+                            <option value="">Seleccione</option>
+                            <option value="M">M</option>
+                            <option value="F">F</option>
+                        </select>
+                    </label>
+                    <label>Tabaquismo
+                        <select name="tabaquismo" required>
+                            <option value="">Seleccione</option>
+                            <option value="Si">Sí</option>
+                            <option value="No">No</option>
+                            <option value="Extabaquista">Ex tabaquista</option>
+                        </select>
+                    </label>
+                    <label>Diabetes
+                        <select name="diabetes" required>
+                            <option value="">Seleccione</option>
+                            <option value="Si">Sí</option>
+                            <option value="No">No</option>
+                        </select>
+                    </label>
+                    <label>Dislipemia
+                        <select name="dislipemia" required>
+                            <option value="">Seleccione</option>
+                            <option value="Si">Sí</option>
+                            <option value="No">No</option>
+                        </select>
+                    </label>
+                    <label>Hipertensión Arterial
+                        <select name="hta" required>
+                            <option value="">Seleccione</option>
+                            <option value="Si">Sí</option>
+                            <option value="No">No</option>
+                        </select>
+                    </label>
+                    <label>Antecedentes Familiares
+                        <select name="antecedentes_familiares" required>
+                            <option value="">Seleccione</option>
+                            <option value="Si">Sí</option>
+                            <option value="No">No</option>
+                        </select>
+                    </label>
+                    <label>Peso (kg)
+                        <input type="number" name="peso" min="0" step="0.01" required>
+                    </label>
+                    <label>Altura (m)
+                        <input type="number" name="altura" min="0" step="0.01" required>
+                    </label>
+                    <label>Alergias
+                        <select name="alergias" required>
+                            <option value="">Seleccione</option>
+                            <option value="Si">Sí</option>
+                            <option value="No">No</option>
+                        </select>
+                    </label>
+                </div>
+                <label>Antecedentes Neurológicos
+                    <textarea name="antecedentes_neurologicos"></textarea>
+                </label>
+                <label>Antecedentes Cardiovasculares
+                    <textarea name="antecedentes_cardiovasculares"></textarea>
+                </label>
+                <label>Antecedentes Respiratorios
+                    <textarea name="antecedentes_respiratorios"></textarea>
+                </label>
+                <label>Antecedentes Gastrointestinales
+                    <textarea name="antecedentes_gastrointestinales"></textarea>
+                </label>
+                <label>Antecedentes Nefro-urológicos
+                    <textarea name="antecedentes_nefrourologicos"></textarea>
+                </label>
+                <label>Antecedentes Traumatológicos
+                    <textarea name="antecedentes_traumatologicos"></textarea>
+                </label>
+                <label>Otros Antecedentes
+                    <textarea name="otros_antecedentes"></textarea>
+                </label>
+            </section>
+
+            <section>
+                <h2>Medicación Habitual</h2>
+                <div id="medicaciones">
+                    <div class="medicacion-row">
+                        <input type="text" name="medicacion_nombre" placeholder="Medicamento">
+                        <input type="number" name="medicacion_dosis" min="0" step="0.01" placeholder="Dosis">
+                        <select name="medicacion_unidad">
+                            <option value="mg">mg</option>
+                            <option value="gr">gr</option>
+                            <option value="ng">ng</option>
+                            <option value="mcg">mcg</option>
+                        </select>
+                        <input type="text" name="medicacion_frecuencia" placeholder="Frecuencia">
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>Examen Físico</h2>
+                <label>Examen Neurológico
+                    <textarea name="examen_neurologico"></textarea>
+                </label>
+                <label>Examen Cardiovascular
+                    <textarea name="examen_cardiovascular"></textarea>
+                </label>
+                <label>Examen Respiratorio
+                    <textarea name="examen_respiratorio"></textarea>
+                </label>
+                <label>Examen Gastrointestinal
+                    <textarea name="examen_gastrointestinal"></textarea>
+                </label>
+                <label>Examen Genitourinario
+                    <textarea name="examen_genitourinario"></textarea>
+                </label>
+                <label>Examen de Piel y Partes Blandas
+                    <textarea name="examen_piel"></textarea>
+                </label>
+                <div class="grid">
+                    <label>TAS
+                        <input type="number" name="tas" min="1" max="300">
+                    </label>
+                    <label>TAD
+                        <input type="number" name="tad" min="1" max="200">
+                    </label>
+                </div>
+            </section>
+
+            <section>
+                <h2>Exámenes Complementarios</h2>
+                <div class="grid">
+                    <label>Fecha
+                        <input type="date" name="examen_fecha">
+                    </label>
+                    <label>Descripción del Resultado
+                        <textarea name="examen_descripcion"></textarea>
+                    </label>
+                </div>
+            </section>
+
+            <section>
+                <h2>Evaluación e Indicaciones</h2>
+                <textarea name="evaluacion" class="full-width"></textarea>
+            </section>
+
+            <button type="submit">Guardar Historia Clínica</button>
+        </form>
+
+        {% if submitted_data %}
+        <section class="resultado">
+            <h2>Datos Enviados</h2>
+            <pre>{{ submitted_data | tojson(indent=2, ensure_ascii=False) }}</pre>
+        </section>
+        {% endif %}
+    </div>
+</body>
+</html>
