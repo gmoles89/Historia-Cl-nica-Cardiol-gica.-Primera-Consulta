@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historia Clínica Cardiológica</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <header class="app-header">
+        <h1>Historia Clínica Cardiológica - Primera Consulta</h1>
+        <p class="subtitle">Registro estructurado basado en modelos clínicos reconocidos para agilizar la consulta cardiológica.</p>
+    </header>
+
+    <div class="layout">
+        <main class="main">
+            <form method="post" class="history-form">
+                {% for section in sections %}
+                <section class="card">
+                    <h2>{{ section.title }}</h2>
+                    <div class="section-grid {% if section.multiline %}multiline{% endif %}">
+                        {% for field, label in section.fields %}
+                            <label class="field" for="{{ field }}">
+                                <span>{{ label }}</span>
+                                {% set value = form_data.get(field, '') %}
+                                {% if field == 'sexo' %}
+                                    <select name="sexo" id="sexo">
+                                        <option value="" {% if not value %}selected{% endif %}>Seleccione</option>
+                                        <option value="Femenino" {% if value == 'Femenino' %}selected{% endif %}>Femenino</option>
+                                        <option value="Masculino" {% if value == 'Masculino' %}selected{% endif %}>Masculino</option>
+                                        <option value="Otro" {% if value == 'Otro' %}selected{% endif %}>Otro</option>
+                                    </select>
+                                {% elif field == 'factores_riesgo' %}
+                                    {% set seleccionados = value.split('; ') if value else [] %}
+                                    <div class="checkbox-group">
+                                        {% set factores = ['Hipertensión arterial', 'Diabetes mellitus', 'Dislipidemia', 'Tabaquismo activo', 'Ex tabaquismo', 'Obesidad', 'Sedentarismo', 'Enfermedad renal crónica'] %}
+                                        {% for factor in factores %}
+                                            <label class="checkbox">
+                                                <input type="checkbox" name="factores_riesgo_check" value="{{ factor }}" {% if factor in seleccionados %}checked{% endif %}>
+                                                <span>{{ factor }}</span>
+                                            </label>
+                                        {% endfor %}
+                                    </div>
+                                    <textarea name="factores_riesgo" id="factores_riesgo" placeholder="Resumen de factores seleccionados o adicionales" rows="3">{{ value }}</textarea>
+                                {% elif section.multiline %}
+                                    <textarea name="{{ field }}" id="{{ field }}" rows="4">{{ value }}</textarea>
+                                {% else %}
+                                    {% set field_type = field_types.get(field, 'text') %}
+                                    {% if field_type == 'number' %}
+                                        <input type="number" name="{{ field }}" id="{{ field }}" value="{{ value }}" step="any">
+                                    {% elif field_type == 'date' %}
+                                        <input type="date" name="{{ field }}" id="{{ field }}" value="{{ value }}">
+                                    {% else %}
+                                        <input type="text" name="{{ field }}" id="{{ field }}" value="{{ value }}">
+                                    {% endif %}
+                                {% endif %}
+                            </label>
+                        {% endfor %}
+                    </div>
+                </section>
+                {% endfor %}
+                <div class="form-actions">
+                    <button type="submit">Generar resumen</button>
+                </div>
+            </form>
+        </main>
+
+        <aside class="sidebar">
+            <section class="card">
+                <h2>Resumen generado</h2>
+                {% if summary %}
+                    <textarea id="summary" readonly>{{ summary }}</textarea>
+                    <button type="button" class="secondary" id="copy-summary" onclick="copiarResumen()">Copiar resumen</button>
+                {% else %}
+                    <p class="placeholder">Complete la historia clínica y presione «Generar resumen» para obtener un texto listo para compartir.</p>
+                {% endif %}
+            </section>
+
+            <section class="card">
+                <h2>Calculadoras clínicas</h2>
+                <details open>
+                    <summary>CHA<sup>2</sup>DS<sub>2</sub>-VASc</summary>
+                    <div class="calculator">
+                        <div class="checkbox-group vertical">
+                            <label class="checkbox"><input type="checkbox" id="chf"> Insuficiencia cardíaca</label>
+                            <label class="checkbox"><input type="checkbox" id="hta"> Hipertensión arterial</label>
+                            <label class="checkbox"><input type="checkbox" id="edad75"> Edad ≥75 años</label>
+                            <label class="checkbox"><input type="checkbox" id="diabetes"> Diabetes</label>
+                            <label class="checkbox"><input type="checkbox" id="stroke"> ACV/AIT previo o embolia sistémica</label>
+                            <label class="checkbox"><input type="checkbox" id="vascular"> Enfermedad vascular</label>
+                            <label class="checkbox"><input type="checkbox" id="edad6574"> Edad 65-74 años</label>
+                            <label class="checkbox"><input type="checkbox" id="female"> Sexo femenino</label>
+                        </div>
+                        <button type="button" class="secondary" onclick="calcularChadsVasc()">Calcular</button>
+                        <p id="resultado-chads"></p>
+                    </div>
+                </details>
+
+                <details>
+                    <summary>Función renal (CKD-EPI 2021)</summary>
+                    <div class="calculator">
+                        <label>Creatinina sérica (mg/dL)
+                            <input type="number" id="ckd-creatinina" step="0.01" min="0">
+                        </label>
+                        <label>Edad (años)
+                            <input type="number" id="ckd-edad" min="18">
+                        </label>
+                        <label>Sexo
+                            <select id="ckd-sexo">
+                                <option value="">Seleccione</option>
+                                <option value="F">Femenino</option>
+                                <option value="M">Masculino</option>
+                            </select>
+                        </label>
+                        <button type="button" class="secondary" onclick="calcularCkdEpi()">Calcular</button>
+                        <p id="resultado-ckd"></p>
+                    </div>
+                </details>
+
+                <details>
+                    <summary>Riesgo cardíaco prequirúrgico (RCRI)</summary>
+                    <div class="calculator">
+                        <div class="checkbox-group vertical">
+                            <label class="checkbox"><input type="checkbox" id="rcri-cirugia"> Cirugía de alto riesgo</label>
+                            <label class="checkbox"><input type="checkbox" id="rcri-coronaria"> Cardiopatía isquémica</label>
+                            <label class="checkbox"><input type="checkbox" id="rcri-insuficiencia"> Insuficiencia cardíaca</label>
+                            <label class="checkbox"><input type="checkbox" id="rcri-acv"> ACV/AIT previo</label>
+                            <label class="checkbox"><input type="checkbox" id="rcri-diabetes"> Diabetes tratada con insulina</label>
+                            <label class="checkbox"><input type="checkbox" id="rcri-creatinina"> Creatinina &gt; 2 mg/dL</label>
+                        </div>
+                        <button type="button" class="secondary" onclick="calcularRcri()">Calcular</button>
+                        <p id="resultado-rcri"></p>
+                    </div>
+                </details>
+
+                <details>
+                    <summary>Riesgo cardiovascular (Framingham)</summary>
+                    <div class="calculator">
+                        <label>Edad (años)
+                            <input type="number" id="fr-edad" min="20" max="79">
+                        </label>
+                        <label>Sexo
+                            <select id="fr-sexo">
+                                <option value="">Seleccione</option>
+                                <option value="M">Masculino</option>
+                                <option value="F">Femenino</option>
+                            </select>
+                        </label>
+                        <label>Colesterol total (mg/dL)
+                            <input type="number" id="fr-colesterol" min="100" max="400">
+                        </label>
+                        <label>Colesterol HDL (mg/dL)
+                            <input type="number" id="fr-hdl" min="20" max="150">
+                        </label>
+                        <label>Presión arterial sistólica (mmHg)
+                            <input type="number" id="fr-pas" min="80" max="250">
+                        </label>
+                        <label>Tratamiento antihipertensivo
+                            <select id="fr-tratamiento">
+                                <option value="no">No</option>
+                                <option value="si">Sí</option>
+                            </select>
+                        </label>
+                        <label>Tabaquismo activo
+                            <select id="fr-fumador">
+                                <option value="no">No</option>
+                                <option value="si">Sí</option>
+                            </select>
+                        </label>
+                        <label>Diabetes mellitus
+                            <select id="fr-diabetes">
+                                <option value="no">No</option>
+                                <option value="si">Sí</option>
+                            </select>
+                        </label>
+                        <button type="button" class="secondary" onclick="calcularFramingham()">Calcular</button>
+                        <p id="resultado-fr"></p>
+                    </div>
+                </details>
+            </section>
+        </aside>
+    </div>
+
+    <script>
+        function copiarResumen() {
+            const resumen = document.getElementById('summary');
+            if (!resumen) return;
+            resumen.select();
+            resumen.setSelectionRange(0, resumen.value.length);
+            navigator.clipboard.writeText(resumen.value).then(() => {
+                const button = document.getElementById('copy-summary');
+                if (button) {
+                    button.textContent = 'Copiado';
+                    setTimeout(() => button.textContent = 'Copiar resumen', 2000);
+                }
+            });
+        }
+
+        function calcularChadsVasc() {
+            let score = 0;
+            const doubles = ['edad75', 'stroke'];
+            doubles.forEach(id => {
+                if (document.getElementById(id).checked) {
+                    score += 2;
+                }
+            });
+            const simples = ['chf', 'hta', 'diabetes', 'vascular', 'edad6574', 'female'];
+            simples.forEach(id => {
+                if (document.getElementById(id).checked) {
+                    score += 1;
+                }
+            });
+            const riesgos = score === 0 ? 'Riesgo anual muy bajo (<1%)' :
+                score === 1 ? 'Riesgo bajo (1-1.3%)' :
+                score === 2 ? 'Riesgo moderado (≈2.2%)' :
+                'Riesgo alto (>3%)';
+            document.getElementById('resultado-chads').textContent = `Puntaje: ${score}. ${riesgos}.`;
+        }
+
+        function calcularCkdEpi() {
+            const creatinina = parseFloat(document.getElementById('ckd-creatinina').value);
+            const edad = parseFloat(document.getElementById('ckd-edad').value);
+            const sexo = document.getElementById('ckd-sexo').value;
+            if (!creatinina || !edad || !sexo) {
+                document.getElementById('resultado-ckd').textContent = 'Complete creatinina, edad y sexo.';
+                return;
+            }
+            const k = sexo === 'F' ? 0.7 : 0.9;
+            const alpha = sexo === 'F' ? -0.241 : -0.302;
+            const minRatio = Math.min(creatinina / k, 1);
+            const maxRatio = Math.max(creatinina / k, 1);
+            const factorSexo = sexo === 'F' ? 1.012 : 1.0;
+            const egfr = 142 * Math.pow(minRatio, alpha) * Math.pow(maxRatio, -1.200) * Math.pow(0.9938, edad) * factorSexo;
+            document.getElementById('resultado-ckd').textContent = `TFG estimada: ${egfr.toFixed(1)} mL/min/1.73m²`;
+        }
+
+        function calcularRcri() {
+            const factores = ['rcri-cirugia', 'rcri-coronaria', 'rcri-insuficiencia', 'rcri-acv', 'rcri-diabetes', 'rcri-creatinina'];
+            const score = factores.reduce((acc, id) => acc + (document.getElementById(id).checked ? 1 : 0), 0);
+            let riesgo;
+            if (score === 0) riesgo = 'Riesgo 3.9%';
+            else if (score === 1) riesgo = 'Riesgo 6.0%';
+            else if (score === 2) riesgo = 'Riesgo 10.1%';
+            else riesgo = 'Riesgo ≥15%';
+            document.getElementById('resultado-rcri').textContent = `Puntaje: ${score}. ${riesgo} de eventos cardíacos mayores.`;
+        }
+
+        const FR_PARAMS = {
+            M: {
+                s0: 0.88936,
+                mean: 23.9802,
+                coeffs: {
+                    ln_age: 3.06117,
+                    ln_age_sq: -22.1,
+                    ln_chol: 1.1237,
+                    ln_age_ln_chol: -0.93263,
+                    ln_hdl: -1.32617,
+                    ln_age_ln_hdl: 0.70833,
+                    ln_treated_sbp: 1.99881,
+                    ln_age_ln_treated_sbp: -0.91055,
+                    ln_untreated_sbp: 1.93303,
+                    ln_age_ln_untreated_sbp: -0.91324,
+                    smoker: 0.65451,
+                    ln_age_smoker: -1.0242,
+                    diabetes: 0.57367,
+                }
+            },
+            F: {
+                s0: 0.95012,
+                mean: 26.1931,
+                coeffs: {
+                    ln_age: 2.32888,
+                    ln_age_sq: -1.20904,
+                    ln_chol: 1.20904,
+                    ln_age_ln_chol: -0.70833,
+                    ln_hdl: -2.76157,
+                    ln_age_ln_hdl: 1.32617,
+                    ln_treated_sbp: 2.82263,
+                    ln_age_ln_treated_sbp: -2.76157,
+                    ln_untreated_sbp: 2.76157,
+                    ln_age_ln_untreated_sbp: -2.82263,
+                    smoker: 0.52873,
+                    ln_age_smoker: -0.55345,
+                    diabetes: 0.69154,
+                }
+            }
+        };
+
+        function calcularFramingham() {
+            const edad = parseFloat(document.getElementById('fr-edad').value);
+            const sexo = document.getElementById('fr-sexo').value;
+            const colesterol = parseFloat(document.getElementById('fr-colesterol').value);
+            const hdl = parseFloat(document.getElementById('fr-hdl').value);
+            const pas = parseFloat(document.getElementById('fr-pas').value);
+            const enTratamiento = document.getElementById('fr-tratamiento').value === 'si';
+            const fumador = document.getElementById('fr-fumador').value === 'si';
+            const diabetico = document.getElementById('fr-diabetes').value === 'si';
+
+            if (!edad || !sexo || !colesterol || !hdl || !pas) {
+                document.getElementById('resultado-fr').textContent = 'Complete edad, sexo, colesterol, HDL y presión sistólica.';
+                return;
+            }
+
+            const params = FR_PARAMS[sexo];
+            const lnEdad = Math.log(edad);
+            const lnEdadSq = Math.pow(lnEdad, 2);
+            const lnColesterol = Math.log(colesterol);
+            const lnHdl = Math.log(hdl);
+            const lnPas = Math.log(pas);
+
+            let sum = params.coeffs.ln_age * lnEdad + params.coeffs.ln_age_sq * lnEdadSq;
+            sum += params.coeffs.ln_chol * lnColesterol + params.coeffs.ln_age_ln_chol * lnEdad * lnColesterol;
+            sum += params.coeffs.ln_hdl * lnHdl + params.coeffs.ln_age_ln_hdl * lnEdad * lnHdl;
+
+            if (enTratamiento) {
+                sum += params.coeffs.ln_treated_sbp * lnPas + params.coeffs.ln_age_ln_treated_sbp * lnEdad * lnPas;
+            } else {
+                sum += params.coeffs.ln_untreated_sbp * lnPas + params.coeffs.ln_age_ln_untreated_sbp * lnEdad * lnPas;
+            }
+
+            if (fumador) {
+                sum += params.coeffs.smoker + params.coeffs.ln_age_smoker * lnEdad;
+            }
+
+            if (diabetico) {
+                sum += params.coeffs.diabetes;
+            }
+
+            const riesgo = 1 - Math.pow(params.s0, Math.exp(sum - params.mean));
+            document.getElementById('resultado-fr').textContent = `Riesgo a 10 años: ${(riesgo * 100).toFixed(1)}% (modelo Framingham 2008).`;
+        }
+
+        document.addEventListener('input', (event) => {
+            if (event.target.id === 'peso' || event.target.id === 'talla') {
+                const peso = parseFloat(document.getElementById('peso').value);
+                const talla = parseFloat(document.getElementById('talla').value);
+                if (peso && talla) {
+                    const metros = talla / 100;
+                    const imc = peso / (metros * metros);
+                    if (!isNaN(imc)) {
+                        document.getElementById('imc').value = imc.toFixed(1);
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
